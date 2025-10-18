@@ -17,6 +17,7 @@ from io import BytesIO
 @api.route("/assessments/<string:id>/manage", methods=["GET"])
 @login_required
 def get_assessment_for_edit_mode(id):
+    """Get assessment in edit mode - retrieve full assessment structure with all items for editing"""
     result = Authorizer(current_user).can_user_manage_assessment(id)
     return jsonify(result["extra"]["assessment"].get_items(edit_mode=True))
 
@@ -24,6 +25,7 @@ def get_assessment_for_edit_mode(id):
 @api.route("/assessments/<string:id>/questions", methods=["GET"])
 @login_required
 def get_assessment_questions(id):
+    """Get assessment questions in view mode - retrieve questions for responding to assessment"""
     result = Authorizer(current_user).can_user_read_assessment(id)
     return jsonify(result["extra"]["assessment"].get_items(edit_mode=False))
 
@@ -31,6 +33,7 @@ def get_assessment_questions(id):
 @api.route("/assessments/<string:qid>", methods=["DELETE"])
 @login_required
 def delete_assessment(qid):
+    """Delete an assessment - permanently remove vendor or security assessment"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     db.session.delete(result["extra"]["assessment"])
     db.session.commit()
@@ -40,6 +43,7 @@ def delete_assessment(qid):
 @api.route("/assessments/<string:qid>/sections", methods=["POST"])
 @login_required
 def create_section(qid):
+    """Create a new section in an assessment - add grouped section of related questions"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     section = result["extra"]["assessment"].create_section(title=data["title"])
@@ -49,6 +53,7 @@ def create_section(qid):
 @api.route("/assessments/<string:qid>/items", methods=["POST"])
 @login_required
 def create_item(qid):
+    """Create a new question/item in assessment section - add assessment question"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     if not (section := result["extra"]["assessment"].get_section(data["section"])):
@@ -60,6 +65,7 @@ def create_item(qid):
 @api.route("/assessments/<string:qid>/notes", methods=["PUT"])
 @login_required
 def update_assessment_notes(qid):
+    """Update assessment notes - add internal notes or instructions for assessment"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     result["extra"]["assessment"].notes = data.get("data")
@@ -70,6 +76,7 @@ def update_assessment_notes(qid):
 @api.route("/assessments/<string:qid>/sections/<string:id>", methods=["PUT"])
 @login_required
 def update_section(qid, id):
+    """Update assessment section - modify section title or properties"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     section = (
@@ -84,6 +91,7 @@ def update_section(qid, id):
 @api.route("/assessments/<string:qid>/items/<string:id>", methods=["PUT"])
 @login_required
 def update_item(qid, id):
+    """Update assessment item/question - modify question text, type, scoring, or attributes"""
     Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     item = models.FormItem.get_or_404(id)
@@ -100,6 +108,7 @@ def update_item(qid, id):
 @api.route("/assessments/<string:qid>/items/<string:id>", methods=["DELETE"])
 @login_required
 def delete_item(qid, id):
+    """Delete an assessment item/question - remove question from assessment"""
     Authorizer(current_user).can_user_manage_assessment(qid)
     item = models.FormItem.query.get(id)
     db.session.delete(item)
@@ -110,6 +119,7 @@ def delete_item(qid, id):
 @api.route("/assessments/<string:qid>/sections/order", methods=["PUT"])
 @login_required
 def update_section_order(qid):
+    """Update the order of sections in an assessment - reorder sections for better flow"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
 
     data = request.get_json()
@@ -117,7 +127,8 @@ def update_section_order(qid):
     sections = assessment.sections.all()
     for index, section_id in enumerate(data.get("order", [])):
         section = next((record for record in sections if record.id == section_id), None)
-        section.order = index
+        if section:
+            section.order = index
     db.session.commit()
     return jsonify({"message": "ok"})
 
@@ -125,6 +136,7 @@ def update_section_order(qid):
 @api.route("/assessments/<string:qid>/sections/<string:id>/order", methods=["PUT"])
 @login_required
 def update_items_order(qid, id):
+    """Update the order of items/questions within a section - reorder questions"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
 
     data = request.get_json()
@@ -132,7 +144,8 @@ def update_items_order(qid, id):
     section_items = section.items.all()
     for index, item_id in enumerate(data.get("order", [])):
         item = next((record for record in section_items if record.id == item_id), None)
-        item.order = index
+        if item:
+            item.order = index
     db.session.commit()
     return jsonify({"message": "ok"})
 
@@ -140,6 +153,7 @@ def update_items_order(qid, id):
 @api.route("/assessments/<string:qid>/items/<string:id>/response", methods=["PUT"])
 @login_required
 def update_item_response(qid, id):
+    """Update response to an assessment question - answer or update question response"""
     result = Authorizer(current_user).can_user_respond_to_assessment(qid)
     item = models.FormItem.get_or_404(id)
     assessment = result["extra"]["assessment"]
@@ -158,6 +172,7 @@ def update_item_response(qid, id):
 @api.route("/assessments/<string:qid>/items/<string:id>/response", methods=["DELETE"])
 @login_required
 def delete_item_response(qid, id):
+    """Delete response to an assessment question - clear answer to question"""
     # TODO - check if user can delete parts of item
     Authorizer(current_user).can_user_respond_to_assessment(qid)
     item = models.FormItem.get_or_404(id)
@@ -169,6 +184,7 @@ def delete_item_response(qid, id):
 @api.route("/assessments/<string:qid>/items/<string:id>/file", methods=["GET"])
 @login_required
 def get_file_for_assessment_item(qid, id):
+    """Download file attached to assessment question response - retrieve uploaded file"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     item = models.FormItem.get_or_404(id)
     if item.data_type != "file_input":
@@ -192,6 +208,7 @@ def get_file_for_assessment_item(qid, id):
 @api.route("/vendors/<string:id>/files", methods=["GET"])
 @login_required
 def get_files_for_vendor(id):
+    """Get all files uploaded by a vendor - list vendor-submitted documents"""
     # result = Authorizer(current_user).can_user_manage_tenant(id)
     # item = models.FormItem.get_or_404(id)
     vendor = models.Vendor.get_or_404(id)
@@ -202,6 +219,7 @@ def get_files_for_vendor(id):
 @api.route("/vendors/<string:id>/files", methods=["POST"])
 @login_required
 def upload_file_for_vendor(id):
+    """Upload a file for a vendor - attach document to vendor record"""
     # result = Authorizer(current_user).can_user_manage_tenant(id)
     # item = models.FormItem.get_or_404(id)
     vendor = models.Vendor.get_or_404(id)
@@ -216,6 +234,7 @@ def upload_file_for_vendor(id):
 @api.route("/items/<string:id>/messages", methods=["POST"])
 @login_required
 def create_message_for_item(id):
+    """Create a message/comment on an assessment item - enable discussion on question"""
     # result = Authorizer(current_user).can_user_manage_tenant(id)
     item = models.FormItem.get_or_404(id)
     data = request.get_json()
@@ -226,6 +245,7 @@ def create_message_for_item(id):
 @api.route("/items/<string:id>/messages/<string:mid>", methods=["DELETE"])
 @login_required
 def delete_message_for_item(id, mid):
+    """Delete a message from an assessment item - remove comment"""
     # result = Authorizer(current_user).can_user_manage_tenant(id)
     message = models.FormItemMessage.get_or_404(mid)
     db.session.delete(message)
@@ -236,6 +256,7 @@ def delete_message_for_item(id, mid):
 @api.route("/assessments/<string:id>", methods=["PUT"])
 @login_required
 def update_assessment(id):
+    """Update assessment details - modify description, due date, status, or guest access"""
     result = Authorizer(current_user).can_user_manage_assessment(id)
     data = request.get_json()
     assessment = result["extra"]["assessment"]
@@ -257,6 +278,7 @@ def update_assessment(id):
 @api.route("/assessments/<string:id>/review-status", methods=["PUT"])
 @login_required
 def update_assessment_review_status(id):
+    """Update overall assessment review status - mark as reviewed, approved, or needs work"""
     result = Authorizer(current_user).can_user_respond_to_assessment(id)
     data = request.get_json()
     if not data.get("status"):
@@ -273,6 +295,7 @@ def update_assessment_review_status(id):
 @api.route("/assessments/<string:qid>/items/<string:id>/review-status", methods=["PUT"])
 @login_required
 def update_assessment_item_status(qid, id):
+    """Update review status for assessment item - mark question as reviewed with risk/gap notes"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     item = models.FormItem.get_or_404(id)
@@ -293,6 +316,7 @@ def update_assessment_item_status(qid, id):
 @api.route("/assessments/<string:qid>/items/<string:id>/remediation", methods=["PUT"])
 @login_required
 def update_remediation_plan(qid, id):
+    """Update remediation plan for assessment item - track vendor action plan for issues"""
     result = Authorizer(current_user).can_user_manage_question(id)
     data = request.get_json()
     item = result["extra"]["question"]
@@ -311,6 +335,7 @@ def update_remediation_plan(qid, id):
 @api.route("/assessments/<string:id>/review-summary", methods=["GET"])
 @login_required
 def get_assessment_review_summary(id):
+    """Get assessment review summary - overview of review status grouped by outcome"""
     result = Authorizer(current_user).can_user_read_assessment(id)
     assessment = result["extra"]["assessment"]
     return jsonify(assessment.get_grouping_for_question_review_status())

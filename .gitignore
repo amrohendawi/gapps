@@ -55,3 +55,6 @@ venv
 
 # Temp folder
 tmp
+
+
+.langgraph_api
