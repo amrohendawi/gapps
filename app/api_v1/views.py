@@ -2,7 +2,6 @@ from flask import (
     jsonify,
     request,
     current_app,
-    abort,
     render_template,
     Response,
 )
@@ -15,12 +14,12 @@ from sqlalchemy import func
 from app.email import send_email
 from app.utils.reports import Report
 from app.utils.authorizer import Authorizer
-import arrow
 
 
 @api.route("/assessments/<string:qid>", methods=["GET"])
 @login_required
 def get_assessment(qid):
+    """Get detailed information about a specific assessment including form structure and submission status"""
     result = Authorizer(current_user).can_user_read_assessment(qid)
     data = result["extra"]["assessment"].as_dict()
     available_guests = request.args.get("available-guests")
@@ -32,6 +31,7 @@ def get_assessment(qid):
 @api.route("/assessments/<string:qid>/guests")
 @login_required
 def get_guests_for_assessment(qid):
+    """Get list of users who can access and respond to an assessment - useful for sharing assessments"""
     result = Authorizer(current_user).can_user_read_assessment(qid)
     return jsonify(result["extra"]["assessment"].get_available_guests())
 
@@ -39,6 +39,7 @@ def get_guests_for_assessment(qid):
 @api.route("/assessments/<string:qid>/publish", methods=["PUT"])
 @login_required
 def publish_assessment(qid):
+    """Publish or unpublish an assessment - controls whether the assessment is visible and accessible"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     result["extra"]["assessment"].published = data.get("enabled")
@@ -48,6 +49,7 @@ def publish_assessment(qid):
 @api.route("/assessments/<string:qid>/guests", methods=["PUT"])
 @login_required
 def update_assessment_guests(qid):
+    """Update the list of users who can access an assessment - assigns or revokes guest access"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     result["extra"]["assessment"].set_guests(
@@ -59,6 +61,7 @@ def update_assessment_guests(qid):
 @api.route("/assessments/<string:qid>/form", methods=["PUT"])
 @login_required
 def update_assessment_form(qid):
+    """Update the form structure and questions for an assessment - modifies assessment content"""
     result = Authorizer(current_user).can_user_manage_assessment(qid)
     data = request.get_json()
     result["extra"]["assessment"].form = data.get("form", {})
@@ -69,6 +72,7 @@ def update_assessment_form(qid):
 @api.route("/assessments/<string:qid>/submission", methods=["PUT"])
 @login_required
 def update_assessment_submission(qid):
+    """Submit or update responses to an assessment - records user answers to assessment questions"""
     result = Authorizer(current_user).can_user_respond_to_assessment(qid)
     assessment = result["extra"]["assessment"]
     data = request.get_json()
@@ -82,6 +86,7 @@ def update_assessment_submission(qid):
 @api.route("/tenants/<string:tid>/assessments", methods=["GET"])
 @login_required
 def get_assessments(tid):
+    """Get all assessments within a tenant that the current user can access - lists available assessments"""
     result = Authorizer(current_user).can_user_access_tenant(tid)
     data = []
     for assessment in result["extra"]["tenant"].get_assessments_for_user(current_user):
@@ -92,6 +97,7 @@ def get_assessments(tid):
 @api.route("/tenants/<string:tid>/forms", methods=["GET"])
 @login_required
 def get_forms(tid):
+    """Get all form templates available in a tenant - reusable assessment and questionnaire templates"""
     result = Authorizer(current_user).can_user_access_tenant(tid)
     data = []
 
@@ -103,6 +109,7 @@ def get_forms(tid):
 @api.route("/forms/<string:id>", methods=["GET"])
 @login_required
 def get_form(id):
+    """Get detailed information about a specific form template including structure and fields"""
     result = Authorizer(current_user).can_user_read_form(id)
     return jsonify(result["extra"]["form"].as_dict())
 
@@ -110,6 +117,7 @@ def get_form(id):
 @api.route("/tenants/<string:tid>/forms", methods=["POST"])
 @login_required
 def create_form(tid):
+    """Create a new form template in a tenant - establishes reusable questionnaire structure"""
     result = Authorizer(current_user).can_user_manage_tenant(tid)
     data = request.get_json()
     form = result["extra"]["tenant"].create_form(
@@ -121,6 +129,7 @@ def create_form(tid):
 @api.route("/tenants/<string:id>/frameworks", methods=["GET"])
 @login_required
 def get_frameworks(id):
+    """Get all compliance frameworks available in a tenant like ISO 27001, SOC 2, NIST, etc"""
     data = []
     result = Authorizer(current_user).can_user_access_tenant(id)
     for framework in result["extra"]["tenant"].frameworks.all():
@@ -131,6 +140,7 @@ def get_frameworks(id):
 @api.route("/projects/<string:id>/reports", methods=["POST"])
 @login_required
 def generate_report_for_project(id):
+    """Generate a compliance or status report for a project - creates downloadable report document"""
     result = Authorizer(current_user).can_user_read_project(id)
     report = Report().generate(result["extra"]["project"])
     return jsonify({"name": report})
@@ -139,6 +149,7 @@ def generate_report_for_project(id):
 @api.route("/projects/<string:id>/scratchpad", methods=["GET"])
 @login_required
 def get_scratchpad_for_project(id):
+    """Get project scratchpad notes - free-form text area for project documentation"""
     result = Authorizer(current_user).can_user_read_project_scratchpad(id)
     return jsonify({"notes": result["extra"]["project"].notes})
 
@@ -146,6 +157,7 @@ def get_scratchpad_for_project(id):
 @api.route("/projects/<string:id>/scratchpad", methods=["PUT"])
 @login_required
 def update_scratchpad_for_project(id):
+    """Update project scratchpad notes - saves free-form text documentation"""
     result = Authorizer(current_user).can_user_write_project_scratchpad(id)
     data = request.get_json()
     result["extra"]["project"].notes = data["data"]
@@ -156,6 +168,7 @@ def update_scratchpad_for_project(id):
 @api.route("/projects/<string:id>/comments", methods=["POST"])
 @login_required
 def add_comment_for_project(id):
+    """Add a comment to a project - enables team collaboration and discussion"""
     result = Authorizer(current_user).can_user_access_project(id)
     data = request.get_json()
     if not data.get("data"):
@@ -194,6 +207,7 @@ def add_comment_for_project(id):
 @api.route("/projects/<string:pid>/comments/<string:cid>", methods=["DELETE"])
 @login_required
 def delete_comment_for_project(pid, cid):
+    """Delete a comment from a project - removes user comment from project discussion"""
     result = Authorizer(current_user).can_user_delete_project_comment(cid)
     db.session.delete(result["extra"]["comment"])
     db.session.commit()
@@ -203,6 +217,7 @@ def delete_comment_for_project(pid, cid):
 @api.route("/projects/<string:pid>/comments", methods=["GET"])
 @login_required
 def get_comments_for_project(pid):
+    """Get all comments for a project - retrieves project discussion history"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = [
         comment.as_dict()
@@ -216,6 +231,7 @@ def get_comments_for_project(pid):
 @api.route("/projects/<string:pid>/findings", methods=["GET"])
 @login_required
 def get_findings_for_project(pid):
+    """Get all security findings and issues identified in a project - lists vulnerabilities and risks"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = [finding.as_dict() for finding in result["extra"]["project"].findings.all()]
     return jsonify(data)
@@ -224,6 +240,7 @@ def get_findings_for_project(pid):
 @api.route("/projects/<string:pid>/matrix/summary", methods=["GET"])
 @login_required
 def get_resp_matrix_summary_for_project(pid):
+    """Get responsibility matrix summary showing control ownership and assignment statistics"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = {"total": 0, "owners": [], "operators": []}
     _query = result["extra"]["project"].subcontrols(as_query=True)
@@ -260,6 +277,7 @@ def get_resp_matrix_summary_for_project(pid):
 @api.route("/projects/<string:pid>/matrix/users/<string:uid>", methods=["GET"])
 @login_required
 def get_resp_matrix_for_user(pid, uid):
+    """Get controls assigned to a specific user in responsibility matrix - shows owned and operated controls"""
     result = Authorizer(current_user).can_user_access_project(pid)
     if uid == 0:
         uid = None
@@ -279,6 +297,7 @@ def get_resp_matrix_for_user(pid, uid):
 @api.route("/projects/<string:pid>/members")
 @login_required
 def get_members_for_project(pid):
+    """Get all members and potential members for a project with their access levels"""
     result = Authorizer(current_user).can_user_access_project(pid)
     project = result["extra"]["project"]
     users = []
@@ -294,6 +313,7 @@ def get_members_for_project(pid):
 @api.route("/projects/<string:pid>/members", methods=["POST"])
 @login_required
 def add_members_for_project(pid):
+    """Add users as members to a project with specified access levels"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = request.get_json()
     for record in data["members"]:
@@ -305,6 +325,7 @@ def add_members_for_project(pid):
 @api.route("/projects/<string:pid>/members/<string:uid>/access", methods=["PUT"])
 @login_required
 def update_access_level_for_user_in_project(pid, uid):
+    """Update a project member's access level - change user permissions within project"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = request.get_json()
     result["extra"]["project"].update_member_access(uid, data["access_level"])
@@ -314,6 +335,7 @@ def update_access_level_for_user_in_project(pid, uid):
 @api.route("/projects/<string:pid>/members/<string:uid>", methods=["DELETE"])
 @login_required
 def delete_user_from_project(pid, uid):
+    """Remove a member from a project - revokes user's access to project"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     result["extra"]["project"].remove_member(models.User.query.get(uid))
     return jsonify({"message": "ok"})
@@ -322,6 +344,7 @@ def delete_user_from_project(pid, uid):
 @api.route("/tenants/<string:tid>/frameworks", methods=["GET"])
 @login_required
 def get_frameworks_for_tenant(tid):
+    """Get all compliance frameworks in a tenant - ISO 27001, SOC 2, NIST, etc"""
     result = Authorizer(current_user).can_user_read_tenant(tid)
     data = []
     for framework in result["extra"]["tenant"].frameworks.all():
@@ -332,6 +355,7 @@ def get_frameworks_for_tenant(tid):
 @api.route("/tenants/<string:tid>/controls", methods=["POST"])
 @login_required
 def create_control_for_tenant(tid):
+    """Create a custom security control in a tenant - adds new control to control library"""
     Authorizer(current_user).can_user_manage_tenant(tid)
     payload = request.get_json()
     models.Control.create(payload, tid)
@@ -341,6 +365,7 @@ def create_control_for_tenant(tid):
 @api.route("/tenants/<string:tid>/policies", methods=["GET"])
 @login_required
 def get_policies_for_tenant(tid):
+    """Get all security policies available in a tenant - access control, data classification, etc"""
     result = Authorizer(current_user).can_user_read_tenant(tid)
     data = []
     for policy in result["extra"]["tenant"].policies.all():
@@ -351,6 +376,7 @@ def get_policies_for_tenant(tid):
 @api.route("/tenants/<string:tid>/policies", methods=["POST"])
 @login_required
 def create_policy_for_tenant(tid):
+    """Create a new security policy in a tenant - establishes organizational policy document"""
     result = Authorizer(current_user).can_user_manage_tenant(tid)
     payload = request.get_json()
     policy = models.Policy(
@@ -366,6 +392,7 @@ def create_policy_for_tenant(tid):
 @api.route("/tenants/<string:tid>/load-frameworks", methods=["PUT"])
 @login_required
 def reload_tenant_frameworks(tid):
+    """Load base compliance frameworks into tenant - initializes ISO 27001, SOC 2, NIST, etc"""
     result = Authorizer(current_user).can_user_admin_tenant(tid)
     result["extra"]["tenant"].create_base_frameworks()
     return jsonify({"message": "ok"})
@@ -374,6 +401,7 @@ def reload_tenant_frameworks(tid):
 @api.route("/tenants/<string:tid>/load-policies", methods=["PUT"])
 @login_required
 def reload_tenant_policies(tid):
+    """Load base policy templates into tenant - initializes standard security policies"""
     result = Authorizer(current_user).can_user_admin_tenant(tid)
     result["extra"]["tenant"].create_base_policies()
     return jsonify({"message": "ok"})
@@ -382,6 +410,7 @@ def reload_tenant_policies(tid):
 @api.route("/projects/<string:pid>", methods=["GET"])
 @login_required
 def get_project(pid):
+    """Get detailed information about a project including controls, policies, and compliance status"""
     with_summary = False
     if request.args.get("summary"):
         with_summary = True
@@ -392,6 +421,7 @@ def get_project(pid):
 @api.route("/projects/<string:pid>", methods=["PUT"])
 @login_required
 def update_project(pid):
+    """Update project name and description - modifies basic project information"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = request.get_json()
     if data.get("name"):
@@ -405,6 +435,7 @@ def update_project(pid):
 @api.route("/projects/<string:pid>", methods=["DELETE"])
 @login_required
 def delete_project(pid):
+    """Delete a compliance project and all associated data - permanently removes project"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     db.session.delete(result["extra"]["project"])
     db.session.commit()
@@ -414,6 +445,7 @@ def delete_project(pid):
 @api.route("/policies/<string:pid>", methods=["GET"])
 @login_required
 def get_policy(pid):
+    """Get detailed information about a security policy including content and template"""
     result = Authorizer(current_user).can_user_read_policy(pid)
     return jsonify(result["extra"]["policy"].as_dict())
 
@@ -421,6 +453,7 @@ def get_policy(pid):
 @api.route("/policies/<string:pid>", methods=["PUT"])
 @login_required
 def update_policy(pid):
+    """Update security policy content, name, and template - modifies policy document"""
     result = Authorizer(current_user).can_user_manage_policy(pid)
     data = request.get_json()
     policy = result["extra"]["policy"]
@@ -436,6 +469,7 @@ def update_policy(pid):
 @api.route("/frameworks/<string:fid>", methods=["GET"])
 @login_required
 def get_framework(fid):
+    """Get detailed information about a compliance framework including controls and requirements"""
     result = Authorizer(current_user).can_user_read_framework(fid)
     return jsonify(result["extra"]["framework"].as_dict())
 
@@ -443,6 +477,7 @@ def get_framework(fid):
 @api.route("/evidence/<string:eid>", methods=["GET"])
 @login_required
 def get_evidence(eid):
+    """Get detailed information about a piece of evidence including file metadata and description"""
     result = Authorizer(current_user).can_user_read_evidence(eid)
     return jsonify(result["extra"]["evidence"].as_dict())
 
@@ -450,6 +485,7 @@ def get_evidence(eid):
 @api.route("/evidence/<string:id>/file", methods=["GET"])
 @login_required
 def get_file_for_evidence(id):
+    """Download the file attached to an evidence record - returns file as binary download"""
     result = Authorizer(current_user).can_user_read_evidence(id)
     evidence = result["extra"]["evidence"]
     file_bytes = evidence.get_file(as_blob=True)
@@ -463,6 +499,7 @@ def get_file_for_evidence(id):
 @api.route("/evidence/<string:eid>", methods=["PUT"])
 @login_required
 def update_evidence(eid):
+    """Update evidence details including name, description, content, and attached file"""
     result = Authorizer(current_user).can_user_manage_evidence(eid)
     evidence = result["extra"]["evidence"]
     evidence.update(
@@ -478,6 +515,7 @@ def update_evidence(eid):
 @api.route("/evidence/<string:eid>", methods=["DELETE"])
 @login_required
 def delete_evidence(eid):
+    """Delete evidence record and associated file - permanently removes evidence"""
     result = Authorizer(current_user).can_user_manage_evidence(eid)
     result["extra"]["evidence"].delete()
     return jsonify({"message": "ok"})
@@ -486,6 +524,7 @@ def delete_evidence(eid):
 @api.route("/evidence/<string:eid>/controls", methods=["PUT"])
 @login_required
 def add_evidence_to_controls(eid):
+    """Associate evidence with multiple controls - links evidence to control requirements"""
     result = Authorizer(current_user).can_user_manage_evidence(eid)
     payload = request.get_json()
     result["extra"]["evidence"].associate_with_controls(payload)
@@ -495,6 +534,7 @@ def add_evidence_to_controls(eid):
 @api.route("/policies/<string:pid>", methods=["DELETE"])
 @login_required
 def delete_policy(pid):
+    """Delete a security policy - permanently removes policy document"""
     result = Authorizer(current_user).can_user_manage_policy(pid)
     db.session.delete(result["extra"]["policy"])
     db.session.commit()
@@ -504,6 +544,7 @@ def delete_policy(pid):
 @api.route("/controls/<string:cid>", methods=["DELETE"])
 @login_required
 def delete_control(cid):
+    """Hide a control by marking it invisible - soft delete of control"""
     result = Authorizer(current_user).can_user_manage_control(cid)
     result["extra"]["control"].visible = False
     db.session.commit()
@@ -513,6 +554,7 @@ def delete_control(cid):
 @api.route("/controls/<string:cid>", methods=["GET"])
 @login_required
 def get_control(cid):
+    """Get detailed information about a security control including description and requirements"""
     result = Authorizer(current_user).can_user_read_control(cid)
     return jsonify(result["extra"]["control"].as_dict())
 
@@ -520,6 +562,7 @@ def get_control(cid):
 @api.route("/tenants/<string:tid>/projects", methods=["GET"])
 @login_required
 def get_projects_in_tenant(tid):
+    """List all compliance projects in a tenant with summary information"""
     data = []
     result = Authorizer(current_user).can_user_access_tenant(tid)
     exclude = request.args.get("exclude-timely", False)
@@ -531,10 +574,11 @@ def get_projects_in_tenant(tid):
 @api.route("/tenants/<string:tid>/projects", methods=["POST"])
 @login_required
 def create_project(tid):
+    """Create a new compliance project from framework or custom template"""
     result = Authorizer(current_user).can_user_manage_tenant(tid)
     payload = request.get_json()
-    result = project_creation(result["extra"]["tenant"], payload, current_user)
-    if not result:
+    project_result = project_creation(result["extra"]["tenant"], payload, current_user)
+    if not project_result:
         return jsonify({"message": "Failed to create project"}), 400
     return jsonify({"message": "ok"})
 
@@ -542,6 +586,7 @@ def create_project(tid):
 @api.route("/projects/<string:pid>/settings", methods=["PUT"])
 @login_required
 def update_settings_in_project(pid):
+    """Update project settings including auditor permissions and access controls"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = request.get_json()
     if data.get("name"):
@@ -575,6 +620,7 @@ def update_settings_in_project(pid):
 @api.route("/projects/<string:pid>/history", methods=["GET"])
 @login_required
 def get_project_completion_history(pid):
+    """Get project completion history over last 30 days - shows progress trends and completion statistics"""
     result = Authorizer(current_user).can_user_access_project(pid)
     return jsonify(result["extra"]["project"].generate_last_30_days())
 
@@ -582,6 +628,7 @@ def get_project_completion_history(pid):
 @api.route("/projects/<string:pid>/controls", methods=["GET"])
 @login_required
 def get_controls_for_project(pid):
+    """Get all controls in a project with optional filtering by implementation status, evidence, or applicability"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = []
     view = request.args.get("view")
@@ -619,6 +666,7 @@ def get_controls_for_project(pid):
 @api.route("/projects/<string:pid>/risks", methods=["POST"])
 @login_required
 def create_risk_for_project(pid):
+    """Create a new risk in the risk register - adds security or compliance risk to project"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = request.get_json()
     risk = result["extra"]["project"].create_risk(
@@ -634,6 +682,7 @@ def create_risk_for_project(pid):
 @api.route("/projects/<string:pid>/risks", methods=["GET"])
 @login_required
 def get_risks_for_project(pid):
+    """Get all risks in project risk register - lists identified security and compliance risks"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = []
     for risk in models.RiskRegister.query.filter(
@@ -646,7 +695,7 @@ def get_risks_for_project(pid):
 @api.route("/projects/<string:pid>/risks/<string:rid>", methods=["PUT"])
 @login_required
 def update_risk_for_project(pid, rid):
-    Authorizer(current_user).can_user_access_project(pid)
+    """Update risk details including status, priority, and mitigation information"""
     data = request.get_json()
     risk = (
         models.RiskRegister.query.filter(models.RiskRegister.project_id == pid)
@@ -665,6 +714,7 @@ def update_risk_for_project(pid, rid):
 @api.route("/controls/<string:cid>/feedback/<string:fid>/risk", methods=["POST"])
 @login_required
 def create_risk_from_feedback(cid, fid):
+    """Create a risk from auditor feedback - converts control feedback into risk register entry"""
     result = Authorizer(current_user).can_user_manage_project_control_auditor_feedback(
         cid, fid
     )
@@ -675,6 +725,7 @@ def create_risk_from_feedback(cid, fid):
 @api.route("/projects/<string:pid>/policies", methods=["GET"])
 @login_required
 def get_policies_for_project(pid):
+    """Get all policies associated with a project - lists security and compliance policies"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = []
     for policy in result["extra"]["project"].policies.all():
@@ -685,6 +736,7 @@ def get_policies_for_project(pid):
 @api.route("/projects/<string:pid>/policies/<string:ppid>", methods=["GET"])
 @login_required
 def get_policy_for_project(pid, ppid):
+    """Get a specific policy in a project with optional version selection"""
     result = Authorizer(current_user).can_user_read_project_policy(ppid)
     version_id = request.args.get("version-id")
     return jsonify(result["extra"]["policy"].as_dict())
@@ -696,6 +748,7 @@ def get_policy_for_project(pid, ppid):
 )
 @login_required
 def get_version_for_policy_in_project(pid, ppid, version):
+    """Get a specific version of a policy document - retrieves historical policy version"""
     result = Authorizer(current_user).can_user_read_project_policy(ppid)
     return jsonify(result["extra"]["policy"].get_version(version, as_dict=True))
 
@@ -703,6 +756,7 @@ def get_version_for_policy_in_project(pid, ppid, version):
 @api.route("/projects/<string:pid>/policies/<string:ppid>/versions", methods=["POST"])
 @login_required
 def create_version_for_policy_in_project(pid, ppid):
+    """Create a new version of a policy document - enables policy version control"""
     result = Authorizer(current_user).can_user_read_project_policy(ppid)
     data = request.get_json()
     version = result["extra"]["policy"].add_version(data.get("content", ""))
@@ -715,6 +769,7 @@ def create_version_for_policy_in_project(pid, ppid):
 )
 @login_required
 def delete_version_for_policy_in_project(pid, ppid, version):
+    """Delete a specific version of a policy document - removes historical version"""
     result = Authorizer(current_user).can_user_read_project_policy(ppid)
     result["extra"]["policy"].delete_version(version)
     return jsonify({"message": "ok"})
@@ -726,6 +781,7 @@ def delete_version_for_policy_in_project(pid, ppid, version):
 )
 @login_required
 def update_policy_version_for_project(pid, ppid, version):
+    """Update a policy version's content, status, or publish state"""
     result = Authorizer(current_user).can_user_manage_project_policy(ppid)
     data = request.get_json()
     version = result["extra"]["policy"].update_version(
@@ -740,6 +796,7 @@ def update_policy_version_for_project(pid, ppid, version):
 @api.route("/projects/<string:pid>/policies/<string:ppid>", methods=["PUT"])
 @login_required
 def update_policy_for_project(pid, ppid):
+    """Update policy metadata including name, description, and reviewer"""
     result = Authorizer(current_user).can_user_manage_project_policy(ppid)
     data = request.get_json()
     policy = result["extra"]["policy"].update(
@@ -753,6 +810,7 @@ def update_policy_for_project(pid, ppid):
 @api.route("/projects/<string:pid>/policies/<string:ppid>", methods=["DELETE"])
 @login_required
 def delete_policy_for_project(pid, ppid):
+    """Remove a policy from a project - unlinks policy from project compliance"""
     result = Authorizer(current_user).can_user_delete_policy_from_project(pid, ppid)
     result["extra"]["policy"].project.remove_policy(ppid)
     return jsonify({"message": "ok"})
@@ -764,6 +822,7 @@ def delete_policy_for_project(pid, ppid):
 )
 @login_required
 def add_control_to_policy(pid, ppid, cid):
+    """Associate a control with a policy - links security control to policy document"""
     result = Authorizer(current_user).can_user_manage_project_policy(ppid)
     result["extra"]["policy"].add_control(cid)
     return jsonify({"message": "ok"})
@@ -775,6 +834,7 @@ def add_control_to_policy(pid, ppid, cid):
 )
 @login_required
 def remove_control_from_policy(pid, ppid, cid):
+    """Remove a control from a policy - unlinks security control from policy document"""
     result = Authorizer(current_user).can_user_manage_project_policy(ppid)
     result["extra"]["policy"].remove_control(cid)
     return jsonify({"message": "ok"})
@@ -783,6 +843,7 @@ def remove_control_from_policy(pid, ppid, cid):
 @api.route("/projects/<string:pid>/controls/<string:cid>", methods=["GET"])
 @login_required
 def get_control_for_project(pid, cid):
+    """Get detailed information about a specific control in a project"""
     result = Authorizer(current_user).can_user_read_project_control(cid)
     return jsonify(result["extra"]["control"].as_dict())
 
@@ -790,6 +851,7 @@ def get_control_for_project(pid, cid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>", methods=["GET"])
 @login_required
 def get_subcontrol_for_project(pid, sid):
+    """Get detailed information about a subcontrol including evidence"""
     result = Authorizer(current_user).can_user_read_project_subcontrol(sid)
     return jsonify(result["extra"]["subcontrol"].as_dict(include_evidence=True))
 
@@ -797,6 +859,7 @@ def get_subcontrol_for_project(pid, sid):
 @api.route("/projects/<string:pid>/controls/<string:cid>/subcontrols", methods=["GET"])
 @login_required
 def get_subcontrols_for_control_in_project(pid, cid):
+    """Get all subcontrols for a specific control with evidence details"""
     result = Authorizer(current_user).can_user_read_project_control(cid)
     data = []
     for subcontrol in (
@@ -811,6 +874,7 @@ def get_subcontrols_for_control_in_project(pid, cid):
 @api.route("/projects/<string:pid>/controls/<string:cid>", methods=["DELETE"])
 @login_required
 def remove_control_from_project(pid, cid):
+    """Remove a control from a project - unlinks control from project scope"""
     result = Authorizer(current_user).can_user_delete_control_from_project(cid, pid)
     result["extra"]["project"].remove_control(cid)
     return jsonify({"message": "ok"})
@@ -819,6 +883,7 @@ def remove_control_from_project(pid, cid):
 @api.route("/projects/<string:id>/policies", methods=["POST"])
 @login_required
 def create_policy_for_project(id):
+    """Create a new policy document in a project from template"""
     result = Authorizer(current_user).can_user_edit_project(id)
     data = request.get_json()
     policy = result["extra"]["project"].create_policy(
@@ -832,6 +897,7 @@ def create_policy_for_project(id):
 @api.route("/controls/<string:cid>/projects/<string:pid>", methods=["PUT"])
 @login_required
 def add_control_to_project(cid, pid):
+    """Add an existing control to a project - includes control in project scope"""
     result = Authorizer(current_user).can_user_add_control_to_project(cid, pid)
     result["extra"]["project"].add_control(result["extra"]["control"])
     return jsonify(result["extra"]["control"].as_dict())
@@ -840,6 +906,7 @@ def add_control_to_project(cid, pid):
 @api.route("/controls/<string:id>/status", methods=["PUT"])
 @login_required
 def update_review_status_for_control(id):
+    """Update control review status - marks control as reviewed, pending, etc"""
     payload = request.get_json()
     result = Authorizer(current_user).can_user_manage_project_control_status(
         id, payload.get("review-status")
@@ -852,7 +919,7 @@ def update_review_status_for_control(id):
 @api.route("/project-controls/<string:cid>/subcontrols/<string:sid>", methods=["PUT"])
 @login_required
 def update_subcontrols_in_control_for_project(cid, sid):
-    # TODO - update
+    """Update subcontrol details including applicability, implementation status, notes, and evidence"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol(sid)
     payload = request.get_json()
     subcontrol = result["extra"]["subcontrol"].update(
@@ -869,6 +936,7 @@ def update_subcontrols_in_control_for_project(cid, sid):
 @api.route("/project-controls/<string:cid>/applicability", methods=["PUT"])
 @login_required
 def set_applicability_of_control_for_project(cid):
+    """Set whether a control is applicable to the project - marks control as applicable or not applicable"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     payload = request.get_json()
     result["extra"]["control"].set_applicability(payload["applicable"])
@@ -878,6 +946,7 @@ def set_applicability_of_control_for_project(cid):
 @api.route("/projects/<string:pid>/evidence/controls", methods=["GET"])
 @login_required
 def project_evidence_by_control(pid):
+    """Get evidence organized by control - groups all evidence by associated controls"""
     result = Authorizer(current_user).can_user_access_project(pid)
     data = []
     if evidence := result["extra"]["project"].evidence_groupings():
@@ -889,6 +958,7 @@ def project_evidence_by_control(pid):
 @api.route("/projects/<string:pid>/controls/<string:cid>/notes", methods=["PUT"])
 @login_required
 def update_notes_for_control(pid, cid):
+    """Update implementation notes for a control - adds team notes about control implementation"""
     result = Authorizer(current_user).can_user_manage_project_control_notes(cid)
     data = request.get_json()
     result["extra"]["control"].notes = data["data"]
@@ -901,6 +971,7 @@ def update_notes_for_control(pid, cid):
 )
 @login_required
 def update_auditor_notes_for_control(pid, cid):
+    """Update auditor notes for a control - adds external auditor observations and feedback"""
     result = Authorizer(current_user).can_user_manage_project_control_auditor_notes(cid)
     data = request.get_json()
     result["extra"]["control"].auditor_notes = data["data"]
@@ -911,6 +982,7 @@ def update_auditor_notes_for_control(pid, cid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>/notes", methods=["PUT"])
 @login_required
 def update_notes_for_subcontrol(pid, sid):
+    """Update implementation notes for a subcontrol - adds team notes about subcontrol implementation"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol_notes(sid)
     data = request.get_json()
     result["extra"]["subcontrol"].notes = data["data"]
@@ -923,6 +995,7 @@ def update_notes_for_subcontrol(pid, sid):
 )
 @login_required
 def update_auditor_notes_for_subcontrol(pid, sid):
+    """Update auditor notes for a subcontrol - adds external auditor observations and feedback"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol_auditor_notes(
         sid
     )
@@ -935,6 +1008,7 @@ def update_auditor_notes_for_subcontrol(pid, sid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>/context", methods=["PUT"])
 @login_required
 def update_context_for_subcontrol(pid, sid):
+    """Update context/background information for a subcontrol - adds relevant organizational context"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol(sid)
     data = request.get_json()
     result["extra"]["subcontrol"].context = data["data"]
@@ -945,6 +1019,7 @@ def update_context_for_subcontrol(pid, sid):
 @api.route("/projects/<string:pid>/controls/<string:cid>/comments", methods=["POST"])
 @login_required
 def add_comment_for_control(pid, cid):
+    """Add a comment to a control discussion - enables team collaboration with @mentions"""
     result = Authorizer(current_user).can_user_read_project_control(cid)
     data = request.get_json()
     if not data.get("data"):
@@ -994,6 +1069,7 @@ def add_comment_for_control(pid, cid):
 )
 @login_required
 def delete_comment_for_control(pid, cid, ccid):
+    """Delete a comment from control discussion - removes user comment"""
     result = Authorizer(current_user).can_user_manage_project_control_comment(ccid)
     db.session.delete(result["extra"]["comment"])
     db.session.commit()
@@ -1003,6 +1079,7 @@ def delete_comment_for_control(pid, cid, ccid):
 @api.route("/projects/<string:pid>/controls/<string:cid>/comments", methods=["GET"])
 @login_required
 def get_comments_for_control(pid, cid):
+    """Get all comments for a control - retrieves control discussion history"""
     result = Authorizer(current_user).can_user_read_project_control(cid)
     data = [
         comment.as_dict()
@@ -1016,6 +1093,7 @@ def get_comments_for_control(pid, cid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>/comments", methods=["POST"])
 @login_required
 def add_comment_for_subcontrol(pid, sid):
+    """Add a comment to a subcontrol discussion - enables team collaboration with @mentions"""
     result = Authorizer(current_user).can_user_read_project_subcontrol(sid)
     data = request.get_json()
     if not data.get("data"):
@@ -1065,6 +1143,7 @@ def add_comment_for_subcontrol(pid, sid):
 )
 @login_required
 def delete_comment_for_subcontrol(pid, sid, cid):
+    """Delete a comment from subcontrol discussion - removes user comment"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol_comment(cid)
     db.session.delete(result["extra"]["comment"])
     db.session.commit()
@@ -1074,6 +1153,7 @@ def delete_comment_for_subcontrol(pid, sid, cid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>/comments", methods=["GET"])
 @login_required
 def get_comments_for_subcontrol(pid, sid):
+    """Get all comments for a subcontrol - retrieves subcontrol discussion history"""
     result = Authorizer(current_user).can_user_read_project_subcontrol(sid)
     data = [
         comment.as_dict()
@@ -1087,6 +1167,7 @@ def get_comments_for_subcontrol(pid, sid):
 @api.route("/projects/<string:pid>/controls/<string:cid>/feedback", methods=["GET"])
 @login_required
 def get_feedback_for_control(pid, cid):
+    """Get auditor feedback for a control - retrieves external audit findings and comments"""
     result = Authorizer(current_user).can_user_read_project_control(cid)
     data = [
         item.as_dict()
@@ -1100,6 +1181,7 @@ def get_feedback_for_control(pid, cid):
 @api.route("/projects/<string:pid>/controls/<string:cid>/feedback", methods=["POST"])
 @login_required
 def add_feedback_for_control(pid, cid):
+    """Add auditor feedback to a control - record external audit findings, issues, or recommendations"""
     result = Authorizer(current_user).can_user_add_project_control_feedback(cid)
     data = request.get_json()
     feedback = result["extra"]["control"].create_feedback(
@@ -1119,6 +1201,7 @@ def add_feedback_for_control(pid, cid):
 )
 @login_required
 def update_feedback_for_control(pid, cid, fid):
+    """Update auditor feedback for a control - modify existing feedback details or response"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     data = request.get_json()
     feedback = result["extra"]["control"].update_feedback(
@@ -1137,6 +1220,7 @@ def update_feedback_for_control(pid, cid, fid):
 )
 @login_required
 def delete_feedback_for_control(pid, cid, fid):
+    """Delete auditor feedback from a control - remove feedback item"""
     result = Authorizer(current_user).can_user_add_project_control_feedback(cid)
     db.session.delete(result["extra"]["feedback"])
     db.session.commit()
@@ -1146,6 +1230,7 @@ def delete_feedback_for_control(pid, cid, fid):
 @api.route("/projects/<string:pid>/evidence", methods=["GET"])
 @login_required
 def get_evidence_for_project(pid):
+    """Get all evidence items for a project - list documents, files, and proof of compliance"""
     result = Authorizer(current_user).can_user_read_project(pid)
     data = [
         evidence.as_dict() for evidence in result["extra"]["project"].evidence.all()
@@ -1156,6 +1241,7 @@ def get_evidence_for_project(pid):
 @api.route("/projects/<string:id>/evidence", methods=["POST"])
 @login_required
 def create_evidence_for_project(id):
+    """Create new evidence for a project - upload or document proof of compliance"""
     result = Authorizer(current_user).can_user_edit_project(id)
 
     evidence = result["extra"]["project"].create_evidence(
@@ -1174,6 +1260,7 @@ def create_evidence_for_project(id):
 )
 @login_required
 def remove_file_from_evidence(pid, sid, eid):
+    """Remove uploaded file from evidence - deletes the file attachment"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol(sid)
     next_check = Authorizer(current_user).can_user_manage_evidence(eid)
     next_check["extra"]["evidence"].remove_file()
@@ -1183,6 +1270,7 @@ def remove_file_from_evidence(pid, sid, eid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>/evidence", methods=["GET"])
 @login_required
 def get_evidence_for_subcontrol(pid, sid):
+    """Get all evidence items for a subcontrol - list proof documents associated with this subcontrol"""
     result = Authorizer(current_user).can_user_read_project_subcontrol(sid)
     data = [
         evidence.as_dict() for evidence in result["extra"]["subcontrol"].evidence.all()
@@ -1193,6 +1281,7 @@ def get_evidence_for_subcontrol(pid, sid):
 @api.route("/projects/<string:pid>/subcontrols/<string:sid>/evidence", methods=["POST"])
 @login_required
 def add_evidence_for_subcontrol(pid, sid):
+    """Add evidence to a subcontrol - upload or document proof of compliance for specific requirement"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol(sid)
 
     evidence = result["extra"]["subcontrol"].project.create_evidence(
@@ -1209,6 +1298,7 @@ def add_evidence_for_subcontrol(pid, sid):
 @api.route("/subcontrols/<string:sid>/associate-evidence", methods=["PUT"])
 @login_required
 def associate_evidence_with_subcontrol(sid):
+    """Associate existing evidence with a subcontrol - link already uploaded evidence to requirement"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol(sid)
     data = request.get_json()
     result["extra"]["subcontrol"].associate_with_evidence(data["evidence"])
@@ -1218,6 +1308,7 @@ def associate_evidence_with_subcontrol(sid):
 @api.route("/subcontrols/<string:sid>/disassociate-evidence", methods=["DELETE"])
 @login_required
 def disassociate_evidence_with_subcontrol(sid):
+    """Remove evidence association from a subcontrol - unlink evidence without deleting it"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol(sid)
     data = request.get_json()
     result["extra"]["subcontrol"].disassociate_with_evidence(data["evidence"])
@@ -1230,6 +1321,7 @@ def disassociate_evidence_with_subcontrol(sid):
 )
 @login_required
 def delete_evidence_for_subcontrol(pid, sid, eid):
+    """Delete evidence from a subcontrol - permanently remove evidence item"""
     result = Authorizer(current_user).can_user_manage_project_subcontrol_evidence(
         sid, eid
     )
@@ -1242,6 +1334,7 @@ def delete_evidence_for_subcontrol(pid, sid, eid):
 @api.route("/tenants/<string:tid>/vendor-files", methods=["GET"])
 @login_required
 def get_files_for_assessments(tid):
+    """Get all vendor assessment files for a tenant - list documents submitted by vendors"""
     result = Authorizer(current_user).can_user_access_tenant(tid)
     data = []
 
@@ -1257,6 +1350,7 @@ def get_files_for_assessments(tid):
 @api.route("/assessments/<string:id>/nudge", methods=["PUT"])
 @login_required
 def send_assessment_reminder_to_vendor(id):
+    """Send reminder email to vendor about pending assessment - nudge for completion"""
     result = Authorizer(current_user).can_user_manage_assessment(id)
     result["extra"]["assessment"].send_reminder_email_to_vendor()
     return jsonify({"message": "ok"})
@@ -1265,6 +1359,7 @@ def send_assessment_reminder_to_vendor(id):
 @api.route("/controls/<string:cid>/tags", methods=["PUT"])
 @login_required
 def add_tag_to_control(cid):
+    """Add tags to a control - organize and categorize with labels"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     data = request.get_json()
     for tag in data.get("tags"):
@@ -1275,6 +1370,7 @@ def add_tag_to_control(cid):
 @api.route("/controls/<string:cid>/tags", methods=["DELETE"])
 @login_required
 def remove_tag_from_control(cid):
+    """Remove tags from a control - delete labels/categories"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     data = request.get_json()
     for tag in data.get("tags"):
@@ -1285,6 +1381,7 @@ def remove_tag_from_control(cid):
 @api.route("/risks/<string:id>/comments", methods=["POST"])
 @login_required
 def add_comment_for_risk(id):
+    """Add a comment to a risk - enable discussion and collaboration on risk items"""
     result = Authorizer(current_user).can_user_manage_risk(id)
     data = request.get_json()
     if not data.get("message"):
@@ -1307,6 +1404,7 @@ def add_comment_for_risk(id):
 @api.route("/project-controls/<string:cid>/assignee", methods=["PUT"])
 @login_required
 def update_control_assignee(cid):
+    """Update the person assigned to a control - assign ownership for implementation"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     data = request.get_json()
     result["extra"]["control"].set_assignee(data.get("assignee-id"))
@@ -1316,6 +1414,7 @@ def update_control_assignee(cid):
 @api.route("/project-controls/<string:cid>/applicability", methods=["PUT"])
 @login_required
 def update_control_applicability(cid):
+    """Update control applicability - mark as applicable or not applicable to organization"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     data = request.get_json()
     if not data.get("applicable"):
@@ -1331,6 +1430,7 @@ def update_control_applicability(cid):
 @api.route("/project-controls/<string:cid>/tags", methods=["PUT"])
 @login_required
 def update_control_tags(cid):
+    """Update all tags for a control - replace existing tags with new set"""
     result = Authorizer(current_user).can_user_manage_project_control(cid)
     data = request.get_json()
     result["extra"]["control"].set_tags(data.get("tags"))
@@ -1340,6 +1440,7 @@ def update_control_tags(cid):
 @api.route("/projects/<string:pid>/tags", methods=["GET"])
 @login_required
 def get_project_tags(pid):
+    """Get all tags for a project - list custom labels used in project"""
     result = Authorizer(current_user).can_user_access_project(pid)
     tags = result["extra"]["project"].tags.all()
     return jsonify([tag.as_dict() for tag in tags])
@@ -1348,6 +1449,7 @@ def get_project_tags(pid):
 @api.route("/projects/<string:pid>/tags", methods=["POST"])
 @login_required
 def create_project_tag(pid):
+    """Create a new tag for a project - add custom label for categorization"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = request.get_json()
     tag = result["extra"]["project"].create_tag(data["name"])
@@ -1357,6 +1459,7 @@ def create_project_tag(pid):
 @api.route("/projects/<string:pid>/controls", methods=["POST"])
 @login_required
 def create_project_control(pid):
+    """Create a custom control for a project - add organization-specific security requirement"""
     result = Authorizer(current_user).can_user_manage_project(pid)
     data = request.get_json()
     control = result["extra"]["project"].add_custom_control(data)

@@ -10,6 +10,7 @@ Gapps is an Security compliance platform that makes it easy to track your progre
 2. [FAQ](#faq)
 
 ### New Features :snowflake:
+- **AI Agents with LangGraph Studio** - Multi-agent orchestration for GRC automation ([Quick Start](ai_agents/LANGGRAPH_STUDIO_README.md))
 - SOC2, NIST CSF, NIST-800-53, CMMC, HIPAA, ASVS, ISO27001, CSC CIS18, PCI DSS and SSF have been added! That makes 10 total frameworks
 - Multi-tenancy, OIDC (SSO)
 - Collaboration with auditors

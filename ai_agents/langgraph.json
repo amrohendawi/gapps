@@ -1,0 +1,8 @@
+{
+  "dependencies": [".."],
+  "graphs": {
+    "grc_orchestrator": "./orchestrator/langgraph_app.py:graph"
+  },
+  "env": "../.env",
+  "python_version": "3.13"
+}

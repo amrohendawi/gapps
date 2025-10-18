@@ -12,6 +12,7 @@ from app.utils.decorators import login_required
 @api.route("/tenants/<string:id>/vendors", methods=["GET"])
 @login_required
 def get_vendors(id):
+    """Get all vendors for a tenant - list third-party service providers and suppliers"""
     result = Authorizer(current_user).can_user_access_tenant(id)
     vendors = result["extra"]["tenant"].vendors.all()
     return jsonify([vendor.as_dict() for vendor in vendors])
@@ -20,6 +21,7 @@ def get_vendors(id):
 @api.route("/vendors/<string:id>", methods=["GET"])
 @login_required
 def get_vendor(id):
+    """Get detailed information about a vendor - retrieve vendor profile and metadata"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     return jsonify(vendor.as_dict())
@@ -28,6 +30,7 @@ def get_vendor(id):
 @api.route("/tenants/<string:id>/vendors", methods=["POST"])
 @login_required
 def create_vendor(id):
+    """Create a new vendor - add third-party supplier or service provider to tenant"""
     result = Authorizer(current_user).can_user_manage_tenant(id)
     data = request.get_json()
     vendor = Vendor(
@@ -50,6 +53,7 @@ def create_vendor(id):
 @api.route("/vendors/<string:id>", methods=["PUT"])
 @login_required
 def update_vendor(id):
+    """Update vendor information - modify vendor details, status, contacts, or criticality"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     data = request.get_json()
@@ -73,6 +77,7 @@ def update_vendor(id):
 @api.route("/vendors/<string:id>/applications", methods=["GET"])
 @login_required
 def get_vendor_applications(id):
+    """Get all applications provided by a vendor - list software/services from this vendor"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     return jsonify([application.as_dict() for application in vendor.apps.all()])
@@ -81,6 +86,7 @@ def get_vendor_applications(id):
 @api.route("/vendors/<string:id>/applications", methods=["POST"])
 @login_required
 def create_vendor_application(id):
+    """Create a new application for a vendor - add software or service provided by vendor"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     data = request.get_json()
@@ -105,6 +111,7 @@ def create_vendor_application(id):
 @api.route("/vendors/<string:id>/categories", methods=["GET"])
 @login_required
 def get_vendor_categories(id):
+    """Get all categories for vendor's applications - list app categories used by this vendor"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     return jsonify(vendor.get_categories())
@@ -113,6 +120,7 @@ def get_vendor_categories(id):
 @api.route("/vendors/<string:id>/assessments", methods=["GET"])
 @login_required
 def get_vendor_assessments(id):
+    """Get all assessments for a vendor - list security assessments and questionnaires"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     return jsonify([assessment.as_dict() for assessment in vendor.get_assessments()])
@@ -121,6 +129,7 @@ def get_vendor_assessments(id):
 @api.route("/vendors/<string:id>/bus", methods=["GET"])
 @login_required
 def get_vendor_business_units(id):
+    """Get all business units for vendor - list organizational units using this vendor"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     return jsonify(vendor.get_bus())
@@ -129,6 +138,7 @@ def get_vendor_business_units(id):
 @api.route("/tenants/<string:id>/vendors", methods=["GET"])
 @login_required
 def get_vendors_for_tenant(id):
+    """Get all vendors for a tenant - list all third-party suppliers (same as get_vendors)"""
     result = Authorizer(current_user).can_user_access_tenant(id)
     vendors = Vendor.query.filter(
         Vendor.tenant_id == result["extra"]["tenant"].id
@@ -139,6 +149,7 @@ def get_vendors_for_tenant(id):
 @api.route("/tenants/<string:id>/applications", methods=["GET"])
 @login_required
 def get_apps_for_tenant(id):
+    """Get all applications for a tenant - list all software and services across all vendors"""
     result = Authorizer(current_user).can_user_access_tenant(id)
     applications = VendorApp.query.filter(
         VendorApp.tenant_id == result["extra"]["tenant"].id
@@ -149,6 +160,7 @@ def get_apps_for_tenant(id):
 @api.route("/tenants/<string:id>/assessments", methods=["GET"])
 @login_required
 def get_assessments_for_tenant(id):
+    """Get all assessments for a tenant - list all vendor security assessments"""
     result = Authorizer(current_user).can_user_access_tenant(id)
     assessments = Assessment.query.filter(
         Assessment.tenant_id == result["extra"]["tenant"].id
@@ -159,6 +171,7 @@ def get_assessments_for_tenant(id):
 @api.route("/tenants/<string:id>/risks", methods=["GET"])
 @login_required
 def get_risks_for_tenant(id):
+    """Get all risks for a tenant - list risk register entries"""
     result = Authorizer(current_user).can_user_access_tenant(id)
     data = []
     for risk in RiskRegister.query.filter(RiskRegister.tenant_id == id).all():
@@ -169,6 +182,7 @@ def get_risks_for_tenant(id):
 @api.route("/vendors/<string:id>/notes", methods=["PUT"])
 @login_required
 def update_notes_for_vendor(id):
+    """Update notes for a vendor - add or modify internal vendor documentation"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     vendor = result["extra"]["vendor"]
     data = request.get_json()
@@ -180,6 +194,7 @@ def update_notes_for_vendor(id):
 @api.route("/vendors/<string:id>/assessments", methods=["POST"])
 @login_required
 def create_assessment_for_vendor(id):
+    """Create a new assessment for a vendor - initiate security questionnaire or review"""
     result = Authorizer(current_user).can_user_access_vendor(id)
     data = request.get_json()
 
@@ -196,6 +211,7 @@ def create_assessment_for_vendor(id):
 @api.route("/applications/<string:id>", methods=["PUT"])
 @login_required
 def update_application(id):
+    """Update application details - modify vendor application properties"""
     result = Authorizer(current_user).can_user_access_application(id)
     app = result["extra"]["application"]
     data = request.get_json()
@@ -208,6 +224,7 @@ def update_application(id):
 @api.route("/tenants/<string:id>/risks", methods=["POST"])
 @login_required
 def create_risk(id):
+    """Create a new risk - add entry to risk register"""
     result = Authorizer(current_user).can_user_manage_tenant(id)
     data = request.get_json()
     risk = result["extra"]["tenant"].create_risk(
@@ -231,6 +248,7 @@ def create_risk(id):
 @api.route("/tenants/<string:tid>/risks/<string:rid>", methods=["PUT"])
 @login_required
 def update_risk(tid, rid):
+    """Update risk details - modify risk register entry"""
     result = Authorizer(current_user).can_user_manage_risk(rid)
     data = request.get_json()
     risk = result["extra"]["risk"]
@@ -253,6 +271,7 @@ def update_risk(tid, rid):
 @api.route("/tenants/<string:tid>/risks/<string:rid>", methods=["DELETE"])
 @login_required
 def delete_risk(tid, rid):
+    """Delete a risk - remove entry from risk register"""
     result = Authorizer(current_user).can_user_manage_risk(rid)
     risk = result["extra"]["risk"]
     db.session.delete(risk)
@@ -263,6 +282,7 @@ def delete_risk(tid, rid):
 @api.route("/tenants/<string:id>/risk-managers", methods=["PUT"])
 @login_required
 def set_risk_managers_for_tenant(id):
+    """Set risk managers for tenant - assign users who can manage risks"""
     result = Authorizer(current_user).can_user_manage_tenant(id)
     tenant = result["extra"]["tenant"]
     data = request.get_json()
@@ -285,6 +305,7 @@ def set_risk_managers_for_tenant(id):
 @api.route("/tenants/<string:id>/risk-viewers", methods=["PUT"])
 @login_required
 def set_risk_viewers_for_tenant(id):
+    """Set risk viewers for tenant - assign users who can view (not edit) risks"""
     result = Authorizer(current_user).can_user_manage_tenant(id)
     tenant = result["extra"]["tenant"]
     data = request.get_json()
@@ -307,6 +328,7 @@ def set_risk_viewers_for_tenant(id):
 @api.route("/tenants/<string:id>/vendors", methods=["PUT"])
 @login_required
 def set_vendors_for_tenant(id):
+    """Set vendor users for tenant - assign users with vendor role (external collaborators)"""
     result = Authorizer(current_user).can_user_manage_tenant(id)
     tenant = result["extra"]["tenant"]
     data = request.get_json()
